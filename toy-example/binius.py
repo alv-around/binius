@@ -45,9 +45,11 @@ def tensor_product(values, F):
 
 
 if __name__ == "__main__":
-    # Fp of Att-bn128
-    F = GF(101)
-
+    # example values
+    p = 101
+    F = GF(p)
+    rs = F.Range(1, 5)  # example random values chosen by verifier
+    # example trace
     trace = F(
         [
             [3, 1, 4, 1],
@@ -56,7 +58,9 @@ if __name__ == "__main__":
             [9, 7, 9, 3],
         ]
     )
+    n = len(trace[0])
 
+    # pre-processing
     trace_ext = generate_extension(trace)
     trace_depth = len(trace)
     assert list(trace_ext[0]) == [
@@ -65,14 +69,11 @@ if __name__ == "__main__":
         F(48),
         F(12),
     ]  # [F(-19), F(-67), F(-154), F(-291)]
-
     tree = generate_merkletree(trace.T, trace_ext.T)
     print(tree)
 
     # proving
     ## create tensors
-    rs = F.Range(1, 5)
-    # [F.Random(shape=len(trace))
     rs_columns, rs_rows = np.split(rs, 2)
     columns = [[F(1) - fp, fp] for fp in rs_columns]
     rows = [[F(1) - fp, fp] for fp in rs_rows]
@@ -87,3 +88,7 @@ if __name__ == "__main__":
 
     t = np.dot(tensor_row, trace)
     assert list(t) == [F(41), F(86), F(74), F(25)]  # [F(41), F(-15), F(74), F(-76)]
+    assert np.dot(t, tensor_col) == F(-137 % 101)
+    poly_t = galois.lagrange_poly(F.Range(0, n), t)
+    assert poly_t(7) == F(-10746 % p)
+    assert poly_t(7) == np.dot(tensor_row, trace_ext[:, -1])
